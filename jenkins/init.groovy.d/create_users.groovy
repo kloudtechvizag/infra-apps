@@ -7,6 +7,7 @@ def instance = Jenkins.getInstance()
 def hudsonRealm = new HudsonPrivateSecurityRealm(false)
 def users = [
   [ "admin",         "Administrator@123", "admin@admin.com" ],
+  [ "admindev",      "Administrator@123", "admindev@admin.com" ],
   [ "spampana",      "Clouddevops#2025", "sreenivas9836@gmail.com" ],
   [ "vsiraparapu",   "Clouddevops#2025", "vanitha0211rani@gmail.com" ],
   [ "jkandregula",   "Clouddevops#2025", "jayanthkandregula01@gmail.com" ],

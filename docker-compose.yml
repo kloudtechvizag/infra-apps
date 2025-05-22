@@ -52,6 +52,8 @@ services:
       - "50000:50000"  # for Jenkins agents
     environment:
       JENKINS_OPTS: --prefix=/jenkins
+      JAVA_OPTS: "-Djenkins.install.runSetupWizard=false"
+
     volumes:
       - jenkins_home:/var/jenkins_home
       - ./jenkins/init.groovy.d:/var/jenkins_home/init.groovy.d:ro
