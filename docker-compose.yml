@@ -54,6 +54,7 @@ services:
       JENKINS_OPTS: --prefix=/jenkins
     volumes:
       - jenkins_home:/var/jenkins_home
+      - ./jenkins/init.groovy.d:/var/jenkins_home/init.groovy.d:ro
     networks:
       - backend
 
