@@ -1,6 +1,6 @@
 # DevOps Infrastructure Stack
 
-This repository contains a Docker Compose configuration for setting up a complete DevOps infrastructure stack. It includes essential tools for continuous integration, code quality analysis, and artifact management.
+This repository contains a Docker Compose configuration for setting up a complete DevOps infrastructure stack. It includes essential tools for continuous integration, code quality analysis, artifact management, and reverse proxy management.
 
 ## Components
 
@@ -9,8 +9,27 @@ The stack includes the following services:
 - **Jenkins** - Continuous Integration/Continuous Deployment server
 - **SonarQube** - Code quality and security analysis
 - **Nexus Repository** - Artifact repository manager
-- **Nginx** - Reverse proxy for service routing
+- **Nginx Proxy Manager** - Web UI for Nginx reverse proxy configuration
 - **PostgreSQL** - Database for SonarQube
+
+## Architecture Overview
+
+```
+                                  ┌─────────────────────┐
+                                  │                     │
+                   80/443/81     │  Nginx Proxy        │
+Client Requests ─────────────────►│  Manager            │
+                                  │                     │
+                                  └─────────┬───────────┘
+                                           │
+                 ┌──────────────────┬──────┴───────┬───────────────┐
+                 │                  │              │               │
+                 ▼                  ▼              ▼               ▼
+          ┌──────────────┐  ┌──────────────┐ ┌──────────┐  ┌───────────┐
+          │   Jenkins    │  │  SonarQube   │ │  Nexus   │  │ PostgreSQL │
+          │ (port 8080) │  │ (port 9000)  │ │(port 8081)│  │ Database  │
+          └──────────────┘  └──────────────┘ └──────────┘  └───────────┘
+```
 
 ## Prerequisites
 
@@ -29,32 +48,62 @@ Before you begin, ensure you have the following installed:
    cd <repository-name>
    ```
 
-2. Create the necessary nginx configuration:
-   ```bash
-   mkdir -p nginx
-   # Create nginx/default.conf with your reverse proxy configuration
-   ```
-
-3. Start the services:
+2. Start the services:
    ```bash
    docker-compose up -d
    ```
+
+3. Configure Nginx Proxy Manager:
+   - Access the Nginx Proxy Manager UI at http://localhost:81
+   - Default login credentials:
+     - Email: admin@example.com
+     - Password: changeme
+   - You'll be prompted to change these credentials on first login
 
 ## Service Access
 
 After successful deployment, the services will be available at:
 
-- Jenkins: http://localhost/jenkins
-  - Default port: 8080
+- **Jenkins**: http://localhost:8080
   - Initial admin password location: `docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword`
+  - Pre-configured users are available (see Jenkins Configuration section)
 
-- SonarQube: http://localhost/sonarqube
-  - Default port: 9000
+- **SonarQube**: http://localhost:9000
   - Default credentials: admin/admin
 
-- Nexus Repository: http://localhost:8081
+- **Nexus Repository**: http://localhost:8081
   - Default credentials: admin/admin123
   - Initial admin password location: `docker exec nexus cat /nexus-data/admin.password`
+
+- **Nginx Proxy Manager**: http://localhost:81
+  - Default credentials: admin@example.com/changeme
+
+## Jenkins Configuration
+
+### Pre-configured Users
+
+Jenkins is pre-configured with several users through the init scripts. The admin users are:
+
+- Username: admin, Password: Administrator@123
+- Username: admindev, Password: Administrator@123
+
+Additional users are also configured with the password "Clouddevops#2025".
+
+### Pre-installed Plugins
+
+Jenkins comes with the following plugins pre-installed:
+
+- workflow-aggregator (Pipeline support)
+- git and github (Git/GitHub integration)
+- github-branch-source (GitHub multibranch pipeline)
+- pipeline-stage-view (Pipeline visualization)
+- credentials-binding (Secure credentials)
+- blueocean (Modern UI)
+- sonar (SonarQube integration)
+- ssh-slaves (SSH agents)
+- matrix-auth (Security)
+- mailer and email-ext (Email notifications)
+- antisamy-markup-formatter (Safe HTML)
 
 ## Volume Information
 
@@ -65,209 +114,85 @@ The setup uses Docker volumes for persistent storage:
 - `sonarqube_extensions`: SonarQube plugins and extensions
 - `postgresql`: SonarQube database
 - `nexus-data`: Nexus Repository data
+- `npm_data`: Nginx Proxy Manager data
+- `npm_letsencrypt`: Nginx Proxy Manager SSL certificates
 
-## Configuration
+## Configuration Details
 
-### Environment Variables
+### SonarQube
 
-#### SonarQube
-- SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonar
-- SONAR_JDBC_USERNAME: sonar
-- SONAR_JDBC_PASSWORD: sonar
-- SONAR_WEB_CONTEXT: /sonarqube
+- Database: PostgreSQL
+- JDBC URL: jdbc:postgresql://db:5432/sonar
+- Database credentials: sonar/sonar
+- Web port: 9000
 
-#### Jenkins
-- JENKINS_OPTS: --prefix=/jenkins
+### Jenkins
 
-#### PostgreSQL
-- POSTGRES_USER: sonar
-- POSTGRES_PASSWORD: sonar
-- POSTGRES_DB: sonar
+- Web port: 8080
+- Agent port: 50000
+- Automatic setup wizard is disabled
+- Custom initialization scripts in `./jenkins/init.groovy.d/`
+
+### Nexus Repository
+
+- Web port: 8081
+- Data directory: /nexus-data
+
+### Nginx Proxy Manager
+
+- Web UI port: 81
+- HTTP port: 80
+- HTTPS port: 443
 
 ## Network Configuration
 
 All services are connected through a bridge network named 'backend' for secure internal communication.
 
-## Nginx Reverse Proxy Configuration
+## Proxy Configuration with Nginx Proxy Manager
 
-The Nginx reverse proxy is a crucial component that routes traffic to different services based on URL paths. Here's a detailed explanation of the configuration:
+Nginx Proxy Manager provides a user-friendly web interface to configure proxy hosts, redirection rules, and SSL certificates.
 
-### Architecture Diagram
+### Setting Up Proxy Hosts
 
-```plaintext
-                                     ┌─────────────────┐
-                                     │                 │
-                      80/443        │  Nginx Reverse  │
-Client Requests ─────────────────►  │     Proxy       │
-                                     │                 │
-                                     └─────────┬───────┘
-                                              │
-                    ┌──────────────────┬──────┴───────┬───────────────┐
-                    │                  │              │               │
-                    ▼                  ▼              ▼               ▼
-             ┌──────────────┐  ┌──────────────┐ ┌──────────┐  ┌───────────┐
-             │   Jenkins    │  │  SonarQube   │ │  Nexus   │  │ Other     │
-             │ (port 8080) │  │ (port 9000)  │ │(port 8081)│  │ Services  │
-             └──────────────┘  └──────────────┘ └──────────┘  └───────────┘
-```
+1. Access the Nginx Proxy Manager UI at http://localhost:81
+2. Navigate to "Proxy Hosts" and click "Add Proxy Host"
+3. Configure the following for each service:
 
-### Route Configuration
+#### For Jenkins:
+- Domain Names: your-domain.com (or localhost for testing)
+- Scheme: http
+- Forward Hostname/IP: jenkins
+- Forward Port: 8080
+- Forward Path: /jenkins
+- Enable "Block Common Exploits"
+- Add SSL certificate if needed
 
-The Nginx reverse proxy routes are configured as follows:
+#### For SonarQube:
+- Domain Names: sonar.your-domain.com (or localhost for testing)
+- Scheme: http
+- Forward Hostname/IP: sonarqube
+- Forward Port: 9000
+- Enable "Block Common Exploits"
+- Add SSL certificate if needed
 
-1. **Jenkins** (`/jenkins`):
-   ```nginx
-   location /jenkins {
-       proxy_pass http://jenkins:8080/jenkins;
-       proxy_set_header Host $host;
-       proxy_set_header X-Real-IP $remote_addr;
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto $scheme;
-   }
-   ```
+#### For Nexus:
+- Domain Names: nexus.your-domain.com (or localhost for testing)
+- Scheme: http
+- Forward Hostname/IP: nexus
+- Forward Port: 8081
+- Enable "Block Common Exploits"
+- Add SSL certificate if needed
 
-2. **SonarQube** (`/sonarqube`):
-   ```nginx
-   location /sonarqube {
-       proxy_pass http://sonarqube:9000/sonarqube;
-       proxy_set_header Host $host;
-       proxy_set_header X-Real-IP $remote_addr;
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-   }
-   ```
+### SSL Certificate Management
 
-3. **Nexus Repository** (`/`):
-   ```nginx
-   location / {
-       proxy_pass http://nexus:8081/;
-       proxy_set_header Host $host;
-       proxy_set_header X-Real-IP $remote_addr;
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-   }
-   ```
+Nginx Proxy Manager can automatically obtain and renew Let's Encrypt SSL certificates:
 
-### Complete Nginx Configuration
-
-Create a file at `nginx/default.conf` with the following content:
-
-```nginx
-server {
-    listen 80;
-    server_name localhost;
-
-    # Increase max body size for artifact uploads
-    client_max_body_size 1G;
-    
-    # Proxy headers for all locations
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-
-    # Jenkins proxy configuration
-    location /jenkins {
-        proxy_pass http://jenkins:8080/jenkins;
-        proxy_redirect off;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_set_header X-Jenkins-Context /jenkins;
-        
-        # WebSocket support
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection upgrade;
-    }
-
-    # SonarQube proxy configuration
-    location /sonarqube {
-        proxy_pass http://sonarqube:9000/sonarqube;
-        proxy_redirect off;
-        
-        # Additional SonarQube specific settings
-        proxy_buffer_size 128k;
-        proxy_buffers 4 256k;
-        proxy_busy_buffers_size 256k;
-    }
-
-    # Nexus proxy configuration
-    location / {
-        proxy_pass http://nexus:8081/;
-        proxy_redirect off;
-
-        # Nexus specific settings
-        proxy_buffer_size 128k;
-        proxy_buffers 4 256k;
-        proxy_busy_buffers_size 256k;
-    }
-}
-```
-
-### Route Flow Diagram
-
-```plaintext
-Client Request
-      │
-      ▼
-┌─────────────┐
-│  Nginx 80   │
-└─────────────┘
-      │
-      ├─────────────────┬─────────────────┐
-      │                 │                 │
-      ▼                 ▼                 ▼
-/jenkins path     /sonarqube path    / (root path)
-      │                 │                 │
-      ▼                 ▼                 ▼
-Jenkins:8080      SonarQube:9000    Nexus:8081
-```
-
-### Important Considerations
-
-1. **SSL/TLS**: For production environments, add SSL configuration:
-   ```nginx
-   listen 443 ssl;
-   ssl_certificate /etc/nginx/ssl/server.crt;
-   ssl_certificate_key /etc/nginx/ssl/server.key;
-   ```
-
-2. **Security Headers**: Consider adding security headers:
-   ```nginx
-   add_header X-Frame-Options "SAMEORIGIN";
-   add_header X-XSS-Protection "1; mode=block";
-   add_header X-Content-Type-Options "nosniff";
-   ```
-
-3. **Rate Limiting**: For production, implement rate limiting:
-   ```nginx
-   limit_req_zone $binary_remote_addr zone=mylimit:10m rate=10r/s;
-   location / {
-       limit_req zone=mylimit burst=20 nodelay;
-   }
-   ```
-
-### Troubleshooting
-
-1. **502 Bad Gateway**:
-   - Check if the backend service is running
-   - Verify network connectivity
-   - Check service logs
-
-2. **504 Gateway Timeout**:
-   - Increase proxy timeouts:
-     ```nginx
-     proxy_connect_timeout 60s;
-     proxy_send_timeout 60s;
-     proxy_read_timeout 60s;
-     ```
-
-3. **413 Request Entity Too Large**:
-   - Adjust `client_max_body_size` in the Nginx configuration
-
-## Ports
-
-- Nginx: 80
-- Jenkins: 8080 (UI), 50000 (agents)
-- SonarQube: 9000
-- Nexus: 8081
+1. Navigate to "SSL Certificates" and click "Add SSL Certificate"
+2. Choose "Let's Encrypt"
+3. Enter your domain(s) and email address
+4. Enable "Use a DNS Challenge"
+5. Select your DNS provider and enter API credentials
+6. Click "Save"
 
 ## Maintenance
 
@@ -285,6 +210,8 @@ To backup the data, you should regularly backup the Docker volumes:
    docker run --rm -v jenkins_home:/source:ro -v $(pwd):/backup alpine tar czf /backup/jenkins_backup.tar.gz -C /source ./
    docker run --rm -v nexus-data:/source:ro -v $(pwd):/backup alpine tar czf /backup/nexus_backup.tar.gz -C /source ./
    docker run --rm -v sonarqube_data:/source:ro -v $(pwd):/backup alpine tar czf /backup/sonarqube_backup.tar.gz -C /source ./
+   docker run --rm -v npm_data:/source:ro -v $(pwd):/backup alpine tar czf /backup/npm_data_backup.tar.gz -C /source ./
+   docker run --rm -v npm_letsencrypt:/source:ro -v $(pwd):/backup alpine tar czf /backup/npm_letsencrypt_backup.tar.gz -C /source ./
    ```
 
 ### Updates
@@ -319,6 +246,11 @@ To update the services:
    - Adjust Docker memory limits
    - Configure JVM memory settings for Java-based services
 
+4. **Nginx Proxy Manager Issues**
+   - Check if the database is properly initialized
+   - Verify network connectivity between containers
+   - Check logs: `docker-compose logs nginxproxymanager`
+
 ### Logs
 
 To view logs for specific services:
@@ -333,6 +265,18 @@ docker-compose logs -f [service_name]
 3. Implement proper backup strategies
 4. Regularly update all services
 5. Configure proper authentication mechanisms
+6. Use strong passwords for all services
+7. Restrict access to management ports (8080, 9000, 8081, 81)
+
+## Resource Requirements
+
+| Service | CPU | Memory | Disk |
+|---------|-----|--------|------|
+| Jenkins | 1-2 cores | 1-2GB | 10GB+ |
+| SonarQube | 2 cores | 2-4GB | 5GB+ |
+| PostgreSQL | 1 core | 1GB | 5GB+ |
+| Nexus | 2 cores | 2-4GB | 10GB+ |
+| Nginx Proxy Manager | 1 core | 512MB | 1GB |
 
 ## Contributing
 
