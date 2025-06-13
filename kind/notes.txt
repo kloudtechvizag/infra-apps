@@ -1,0 +1,24 @@
+kind create cluster --name my-cluster --config cluster.yaml
+
+
+To delete the Kind cluster named dev-k8s, simply run:
+
+kind delete cluster --name dev-k8s
+
+After Deletion
+You can verify it's gone:
+
+    kind get clusters
+
+kind create cluster --name dev-k8s --config kind-dev-config.yaml
+
+kind create cluster --name stg-k8s --config kind-stg-config.yaml
+
+Set kubectl context to "kind-dev-k8s"
+You can now use your cluster with:
+
+kubectl cluster-info --context kind-dev-k8s
+
+
+port-forwarding to access on our local network as below.
+kubectl port-forward svc/mynginx-svc 30007:80
