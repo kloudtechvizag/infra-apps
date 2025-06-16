@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  labels:
+    name: db
+    app: votingapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: db-app
+      app: votingapp
+  template:
+    metadata:
+      name: db-app
+      labels:
+        name: db-app
+        app: votingapp
+    spec:
+      containers:
+        - name: db-app
+          image: postgres
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgres
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  labels:
+    name: db
+    app: votingapp
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    name: db-app
+    app: votingapp
