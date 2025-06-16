@@ -1,18 +1,28 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: vote-app-ingress
+  name: vote-result-multi-host-ingress # Renamed for clarity, as it now handles multiple hosts
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rewrite-target: / # Rewrites the URL path to the root (/) for the backend services
 spec:
   rules:
-    - host: myapp.local
+    - host: vote.local # Rule for the Vote application
       http:
         paths:
-          - path: /
+          - path: / # Matches all incoming requests to the root path of vote.local
             pathType: Prefix
             backend:
               service:
-                name: vote-app-svc
+                name: vote-app-svc # Points to the Vote application service
                 port:
-                  number: 80
+                  number: 80 # The port on the vote-app-svc
+    - host: result.local # Rule for the Result application
+      http:
+        paths:
+          - path: / # Matches all incoming requests to the root path of result.local
+            pathType: Prefix
+            backend:
+              service:
+                name: result-app-svc # Points to the Result application service
+                port:
+                  number: 80 # The port on the result-app-svc
