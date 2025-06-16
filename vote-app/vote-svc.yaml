@@ -6,7 +6,6 @@ metadata:
      name: vote-app-svc
      app: votingapp
 spec: 
-  type: LoadBalancer
   ports:
     - targetPort: 80
       port: 80
