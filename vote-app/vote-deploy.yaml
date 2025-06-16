@@ -9,7 +9,7 @@ spec:
 
   template:
     metadata: 
-      name: vote-app-pod
+      name: vote-app
       labels: 
         name: vote-app
         app: votingapp
