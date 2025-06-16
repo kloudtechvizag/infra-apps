@@ -11,7 +11,7 @@ spec:
     metadata: 
       name: vote-app-pod
       labels: 
-        name: vote-app-pod
+        name: vote-app
         app: votingapp
     spec: 
       containers: 
@@ -23,7 +23,7 @@ spec:
 
   selector:
     matchLabels: 
-        name: vote-app-pod
+        name: vote-app
         app: votingapp
          
 
