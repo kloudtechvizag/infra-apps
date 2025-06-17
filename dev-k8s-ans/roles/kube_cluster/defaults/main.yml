@@ -1,0 +1,33 @@
+# defaults/main.yml
+
+# Kubernetes Version (must be consistent across kubeadm, kubelet, kubectl)
+kube_version: "1.28.3" # Example: use a stable, recent version
+
+# Pod Network CIDR (Calico default)
+pod_network_cidr: "192.168.0.0/16"
+
+# Service Network CIDR
+service_network_cidr: "10.96.0.0/12"
+
+# Kubernetes DNS domain
+cluster_dns_domain: "cluster.local"
+
+# API Server Advertise Address (usually the private IP of the master node)
+# This will be dynamically determined by Ansible fact gathering for the master.
+# If you have a specific interface to bind to, define it here (e.g., "eth0")
+api_server_advertise_address_interface: "enp0s3" # Or the actual network interface name
+
+# Control Plane Endpoint (for HA, this would be your Load Balancer IP/DNS)
+# For single master, this defaults to the master's API server advertise address.
+control_plane_endpoint: "{{ hostvars[groups['kube_master'][0]]['ansible_facts'][api_server_advertise_address_interface]['ipv4']['address'] }}:6443"
+
+# Calico CNI manifest URL
+calico_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/v3.27.2/manifests/calico.yaml"
+
+# Should master nodes be tainted to prevent scheduling regular pods?
+# For small clusters, often set to 'no' to allow pods on master.
+taint_master: "no" # Set to 'yes' for production large clusters.
+
+# Kubeconfig destination for remote_user on master
+kubeconfig_dest_dir: "/home/{{ ansible_user }}/.kube"
+kubeconfig_dest_file: "{{ kubeconfig_dest_dir }}/config"

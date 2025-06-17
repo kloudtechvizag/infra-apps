@@ -1,0 +1,3 @@
+# vars/main.yml
+# No variables defined here by default; using defaults/main.yml primarily.
+# If you need to hardcode specific values or secrets, they can go here or in group_vars/host_vars.

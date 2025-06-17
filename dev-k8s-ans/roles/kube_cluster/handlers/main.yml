@@ -1,0 +1,4 @@
+# handlers/main.yml
+---
+# Handlers would go here if specific services need restarting based on changes,
+# but systemd modules handle most restarts inline.

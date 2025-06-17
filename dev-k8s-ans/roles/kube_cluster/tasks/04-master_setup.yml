@@ -1,0 +1,55 @@
+# tasks/04-master_setup.yml
+---
+- name: Determine master node private IP
+  ansible.builtin.set_fact:
+    master_private_ip: "{{ ansible_facts[api_server_advertise_address_interface]['ipv4']['address'] }}"
+
+- name: Create kubeadm-config.yaml for master initialization
+  ansible.builtin.template:
+    src: kubeadm-config.yaml.j2
+    dest: /etc/kubernetes/kubeadm-config.yaml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Initialize Kubernetes control plane with kubeadm
+  ansible.builtin.command: kubeadm init --config /etc/kubernetes/kubeadm-config.yaml --upload-certs
+  args:
+    creates: /etc/kubernetes/admin.conf # Only run if not already initialized
+  register: kubeadm_init_output
+
+- name: Create .kube directory for ansible_user
+  ansible.builtin.file:
+    path: "{{ kubeconfig_dest_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Copy admin.conf to ansible_user's .kube directory
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ kubeconfig_dest_file }}"
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600' # Secure permissions
+
+- name: Install Calico CNI
+  ansible.builtin.command: kubectl apply -f {{ calico_manifest_url }}
+  args:
+    creates: /etc/calico/calico.yaml # Or some other idempotent check
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dest_file }}"
+
+- name: Get kubeadm join command for worker nodes
+  ansible.builtin.command: kubeadm token create --print-join-command
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dest_file }}"
+  register: join_command_output
+  changed_when: false # This command doesn't change anything
+  delegate_to: "{{ groups['kube_master'][0] }}" # Run on the master node
+  run_once: true # Only run once even if multiple masters defined
+  # Store the join command for later use by worker nodes
+  set_fact:
+    kube_join_command: "{{ join_command_output.stdout }}"

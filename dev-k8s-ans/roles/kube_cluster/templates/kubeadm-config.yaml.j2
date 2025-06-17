@@ -1,0 +1,21 @@
+# templates/kubeadm-config.yaml.j2
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+nodeRegistration:
+  name: {{ inventory_hostname }}
+  kubeletExtraArgs:
+    node-ip: "{{ master_private_ip }}" # Ensure kubelet registers with this IP
+localAPIEndpoint:
+  advertiseAddress: "{{ master_private_ip }}"
+  bindPort: 6443
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+clusterName: {{ cluster_name }}
+kubernetesVersion: v{{ kube_version }}
+controlPlaneEndpoint: "{{ control_plane_endpoint }}"
+networking:
+  podSubnet: {{ pod_network_cidr }}
+  serviceSubnet: {{ service_network_cidr }}
+  dnsDomain: {{ cluster_dns_domain }}

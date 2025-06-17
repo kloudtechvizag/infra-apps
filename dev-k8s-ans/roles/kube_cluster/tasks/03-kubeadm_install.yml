@@ -1,0 +1,41 @@
+# roles/kube_cluster/tasks/03-kubeadm_install.yml
+---
+- name: Remove old Kubernetes APT repository list files (aggressive cleanup)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/sources.list.d/kubernetes.list
+    - /etc/apt/sources.list.d/kubernetes.list.save # Important: remove backup files too
+    - /etc/apt/sources.list.d/kubernetes-xenial.list
+    - /etc/apt/sources.list.d/apt_kubernetes_io.list
+    # Also remove common Docker list files if present, to prevent conflicts.
+    - /etc/apt/sources.list.d/docker.list
+    - /etc/apt/sources.list.d/docker.list.save
+    - /etc/apt/sources.list.d/docker-ubuntu-{{ ansible_facts.distribution_release }}.list
+  ignore_errors: true # Ignore if files don't exist
+
+- name: Clean up old GPG keys related to Kubernetes and Docker (from legacy & new locations)
+  ansible.builtin.shell: |
+    # Remove keys from legacy trusted.gpg.d location
+    sudo rm -f /etc/apt/trusted.gpg.d/kubernetes-archive-keyring.gpg
+    sudo rm -f /etc/apt/trusted.gpg.d/apt-key-kubernetes.gpg
+    sudo rm -f /etc/apt/trusted.gpg.d/docker-archive-keyring.gpg
+    # Also remove keys from the new style keyrings directory to ensure no conflicts
+    sudo rm -f /etc/apt/keyrings/*
+  changed_when: true
+  ignore_errors: true # Don't fail if files aren't found
+
+- name: Add an apt signing key for Kubernetes (using apt_key as requested)
+  ansible.builtin.apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+  register: k8s_key_add
+
+- name: Adding apt repository for Kubernetes (as requested)
+  ansible.builtin.apt_repository:
+    repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: kubernetes.list # Ensure consistent filename
+    update_cache: no # Prevents an immediate apt update before Docker repo is added
+  register: k8s_repo_add

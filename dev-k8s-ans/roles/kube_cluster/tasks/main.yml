@@ -1,0 +1,21 @@
+# tasks/main.yml
+---
+- name: Include common setup tasks on all nodes
+  ansible.builtin.include_tasks: 01-common.yml
+
+- name: Include containerd installation tasks on all nodes
+  ansible.builtin.include_tasks: 02-containerd.yml
+
+- name: Include kubeadm, kubelet, kubectl installation tasks on all nodes
+  ansible.builtin.include_tasks: 03-kubeadm_install.yml
+
+- name: Include master setup tasks
+  ansible.builtin.include_tasks: 04-master_setup.yml
+  when: inventory_hostname in groups['kube_master']
+
+- name: Include worker join tasks
+  ansible.builtin.include_tasks: 05-worker_join.yml
+  when: inventory_hostname in groups['kube_workers']
+
+- name: Include post-installation tasks on all nodes
+  ansible.builtin.include_tasks: 06-post_install.yml

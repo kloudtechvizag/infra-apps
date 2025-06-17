@@ -1,0 +1,32 @@
+# tasks/06-post_install.yml
+---
+- name: Set correct permissions for kubeconfig (if copied to ~/.kube by previous tasks)
+  ansible.builtin.file:
+    path: "{{ kubeconfig_dest_file }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+  when: inventory_hostname in groups['kube_master'] and ansible_user != 'root'
+
+- name: Untaint master node (optional, allows pods to be scheduled on master)
+  ansible.builtin.command: kubectl taint nodes {{ inventory_hostname }} node-role.kubernetes.io/control-plane-
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dest_file }}"
+  when: inventory_hostname in groups['kube_master'] and taint_master == 'no'
+  ignore_errors: true # Command might fail if taint not present
+
+- name: Verify all nodes are ready
+  ansible.builtin.command: kubectl get nodes
+  environment:
+    KUBECONFIG: "{{ kubeconfig_dest_file }}"
+  register: get_nodes_output
+  until: "' Ready ' in get_nodes_output.stdout and (get_nodes_output.stdout.splitlines() | length) == (groups['kube_nodes'] | length) + 1" # +1 for header
+  retries: 20
+  delay: 10
+  when: inventory_hostname in groups['kube_master']
+  changed_when: false
+
+- name: Print cluster nodes status
+  ansible.builtin.debug:
+    msg: "{{ get_nodes_output.stdout }}"
+  when: inventory_hostname in groups['kube_master']

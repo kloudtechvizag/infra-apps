@@ -1,0 +1,51 @@
+# ---
+# - name: Setup Kubernetes Cluster
+#   hosts: kube_nodes
+#   become: yes
+#   gather_facts: yes 
+#   remote_user: ubuntu
+
+#   # pre_tasks:
+#   #   - name: Ensure Python is installed for Ansible
+#   #     raw: apt update && apt install -y python3 python3-pip
+#   #     register: python_install_result
+#   #     changed_when: python_install_result.rc != 0
+#   #     failed_when: python_install_result.rc != 0 and 'already installed' not in python_install_result.stderr
+
+#   roles:
+#     - kube_cluster
+
+
+---
+- name: Setup Kubernetes Cluster - Pre-requisites and APT Cleanup
+  hosts: kube_nodes
+  become: yes
+  gather_facts: false # No need for facts before basic setup
+
+  tasks:
+
+    - name: Ensure apt lock files are cleared
+      ansible.builtin.shell: |
+        sudo rm -f /var/lib/dpkg/lock-frontend
+        sudo rm -f /var/lib/apt/lists/lock
+        sudo rm -f /var/cache/apt/archives/lock
+        sudo dpkg --configure -a # Fix any interrupted dpkg processes
+      changed_when: true # Always assume changed as it's a cleanup task
+      retries: 5
+      delay: 5
+
+    # - name: Wait for apt lock to be released after cleanup
+    #   ansible.builtin.wait_for:
+    #     path: /var/lib/dpkg/lock-frontend
+    #     state: absent
+    #     timeout: 120
+    #   when: true # Always wait, even if previous task wasn't technically 'changed'
+
+- name: Setup Kubernetes Cluster - Main Role Execution
+  hosts: kube_nodes
+  become: yes
+  gather_facts: yes
+  remote_user: ubuntu
+
+  roles:
+    - kube_cluster

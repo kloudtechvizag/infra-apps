@@ -1,0 +1,11 @@
+# tasks/05-worker_join.yml
+---
+- name: Check if kube_join_command fact exists
+  ansible.builtin.fail:
+    msg: "kube_join_command fact not set. Master setup might have failed or not run."
+  when: kube_join_command is not defined
+
+- name: Join worker node to the cluster
+  ansible.builtin.command: "{{ kube_join_command }}"
+  args:
+    creates: /etc/kubernetes/kubelet.conf # Only run if not already joined
