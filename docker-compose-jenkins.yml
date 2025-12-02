@@ -8,6 +8,7 @@ services:
     image: vsiraparapu/jenkins:latest
     container_name: jenkins
     restart: always
+    pull_policy: always
     user: root
     ports:
       - "8080:8080"
